@@ -28,6 +28,18 @@ jobs:
           pip install playwright pillow
           playwright install --with-deps chromium
 
+      - name: Normalizar tildes en nombres de fotos
+        run: |
+          python - <<'PY'
+          import os, unicodedata
+          d = 'automatizacion/fotos'
+          for n in os.listdir(d):
+              nn = unicodedata.normalize('NFC', n)
+              if nn != n:
+                  os.rename(os.path.join(d, n), os.path.join(d, nn))
+                  print('renombrado:', nn)
+          PY
+
       - name: Generar flyer
         env:
           FECHA_INGRESADA: ${{ github.event.inputs.fecha }}
