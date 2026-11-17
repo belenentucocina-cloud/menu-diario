@@ -1,0 +1,46 @@
+name: Flyer diario
+
+on:
+  schedule:
+    # 07:10 hora Argentina (UTC-3) = 10:10 UTC, de lunes a viernes
+    - cron: '10 10 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      fecha:
+        description: 'Fecha AAAA-MM-DD (vacío = hoy)'
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  flyer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependencias
+        run: |
+          pip install playwright pillow
+          playwright install --with-deps chromium
+
+      - name: Generar flyer
+        env:
+          FECHA_INGRESADA: ${{ github.event.inputs.fecha }}
+        run: |
+          FECHA="${FECHA_INGRESADA:-$(TZ=America/Argentina/Buenos_Aires date +%F)}"
+          echo "Fecha: $FECHA"
+          python automatizacion/generar_flyer.py "$FECHA"
+          python -c "from PIL import Image; Image.open('automatizacion/salida/flyer_${FECHA}.png').convert('RGB').save('automatizacion/salida/flyer_${FECHA}.jpg', quality=95)"
+
+      - name: Guardar flyer en el repositorio
+        run: |
+          git config user.name "flyer-bot"
+          git config user.email "flyer-bot@users.noreply.github.com"
+          git add automatizacion/salida
+          git commit -m "Flyer del día" || echo "Sin cambios"
+          git push
